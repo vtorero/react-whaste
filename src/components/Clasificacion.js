@@ -1,8 +1,8 @@
 import * as knnClassifier from '@tensorflow-models/knn-classifier';
 import * as tf from '@tensorflow/tfjs';
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 
-const Clasificacion = ({data}) => {
+const Clasificacion = ({ data }) => {
   const [mse, setMse] = useState(null);
   const [r2, setR2] = useState(null);
   const [predictedSales, setPredictedSales] = useState(null);
@@ -15,7 +15,7 @@ const Clasificacion = ({data}) => {
       const tensorSales = tf.tensor1d(sales);
 
       // Normalize sales data
-      const {mean, variance} = tf.moments(tensorSales);
+      const { mean, variance } = tf.moments(tensorSales);
       const std = tf.sqrt(variance);
       const normTensorSales = tensorSales.sub(mean).div(std);
 
@@ -71,7 +71,7 @@ const Clasificacion = ({data}) => {
     }
 
     run();
-  }, []);
+  }, [data.sales]);
 
   return (
     <div>

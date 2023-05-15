@@ -1,9 +1,6 @@
 import React from 'react';
-import {linearRegression} from 'simple-statistics';
+import { linearRegression } from 'simple-statistics';
 import Shuffle from '../utils/Shuffle';
-import MeanSquaredError from '../utils/MeanSquaredError';
-import CoefficientOfDeterminant from '../utils/CoefficientOfDeterminant';
-
 // Function to calculate Mean Absolute Percentage Error (MAPE)
 const MeanAbsolutePercentageError = (actual, predicted) => {
   let total = 0;
@@ -13,7 +10,7 @@ const MeanAbsolutePercentageError = (actual, predicted) => {
   return (total / actual.length) * 100;
 };
 
-const LinearRegression = ({data}) => {
+const LinearRegression = ({ data }) => {
   // Historical sales data
   const sales = data.sales;
 
@@ -35,20 +32,11 @@ const LinearRegression = ({data}) => {
   const testingData = shuffledData.slice(splitIndex);
 
   // Simple linear regression model using training data
-  const {m, b} = linearRegression(trainingData);
+  const { m, b } = linearRegression(trainingData);
 
   // Predict values for testing data
   const predictedValues = testingData.map((point) => m * point[0] + b);
 
-  // Calculate mean squared error and R-squared value
-  const mse = MeanSquaredError(
-    testingData.map((point) => point[1]),
-    predictedValues
-  );
-  const rSquared = CoefficientOfDeterminant(
-    testingData.map((point) => point[1]),
-    predictedValues
-  );
 
   // Calculate Mean Absolute Percentage Error (MAPE)
   const mape = MeanAbsolutePercentageError(

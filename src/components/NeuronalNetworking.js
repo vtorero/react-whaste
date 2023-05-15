@@ -1,33 +1,40 @@
-import React, {useState, useEffect} from 'react';
-import {Line} from 'react-chartjs-2';
+import React, { useState } from 'react';
+import { Line } from 'react-chartjs-2';
 import * as tf from '@tensorflow/tfjs';
 import * as tfvis from '@tensorflow/tfjs-vis';
 
 let accuracy = 0;
 let error = 0;
-
-export const NeuronalNetowrking = ({data}) => {
-  console.log(data);
-  const [jsonData, setJsonData] = useState(null);
+const NeuronalNetworking = ({ data }) => {
   const [modeloVentas, setModeloVentas] = useState(null);
   const [chartData, setChartData] = useState(null);
 
-  const loadData = async () => {
-    setJsonData(data);
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const trainModel = async () => {
-    if (!jsonData) return;
+    if (!data) return;
     // Paso 1: Cargar y preparar los dato
-    const fechas = jsonData.dailySales.map((dato) => {
-      return new Date(dato.fecha).getTime();
+    const fechas = data.dailySales.map((dato) => {
+      const parts = dato.fecha.split('-').map(Number);
+      const year = parts[0] < 50 ? 2000 + parts[0] : 1900 + parts[0];
+      const time = new Date(year, parts[2] - 1, parts[1]).getTime();
+      if (!isFinite(time)) {
+        throw new Error(`Invalid data: ${dato.fecha}`);
+      }
+      return time;
+    }).filter((time) => !isNaN(time));
+
+
+    if (fechas.length !== data.dailySales.length) {
+      return;
+    }
+
+    const ventas = data.dailySales.map((dato) => {
+      if (!isFinite(dato.total)) {
+        throw new Error(`Invalid data: ${dato.total}`);
+      }
+      return dato.total;
     });
 
-    const ventas = jsonData.dailySales.map((dato) => dato.total);
     const tensorFechas = tf.tensor2d(fechas, [fechas.length, 1]);
     const tensorVentas = tf.tensor2d(ventas, [ventas.length, 1]);
 
@@ -88,24 +95,24 @@ export const NeuronalNetowrking = ({data}) => {
     // Paso 3: Crear el modelo de red neuronal
     const model = tf.sequential();
     model.add(
-      tf.layers.dense({inputShape: [1], units: 16, activation: 'relu'})
+      tf.layers.dense({ inputShape: [1], units: 16, activation: 'relu' })
     );
-    model.add(tf.layers.dense({units: 1, activation: 'linear'}));
+    model.add(tf.layers.dense({ units: 1, activation: 'linear' }));
 
     // Paso 4: Compilar y entrenar el modelo
-    model.compile({optimizer: 'adam', loss: 'meanSquaredError'});
+    model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
 
     const history = await model.fit(tensorFechasTrain, tensorVentasTrain, {
       epochs: 100,
       validationData: [tensorFechasTest, tensorVentasTest],
       callbacks: tfvis.show.fitCallbacks(
-        {name: 'Historial de entrenamiento'},
+        { name: 'Historial de entrenamiento' },
         ['loss', 'val_loss'],
-        {height: 200, callbacks: ['onEpochEnd']}
+        { height: 200, callbacks: ['onEpochEnd'] }
       ),
     });
 
-    tfvis.show.history({name: 'Historial de entrenamiento'}, history, [
+    tfvis.show.history({ name: 'Historial de entrenamiento' }, history, [
       'loss',
       'val_loss',
     ]);
@@ -122,9 +129,9 @@ export const NeuronalNetowrking = ({data}) => {
   };
 
   const generarPredicciones = async () => {
-    if (!modeloVentas || !jsonData || !jsonData.length) return;
+    if (!modeloVentas || !data || !data.length) return;
 
-    const fechas = jsonData.map((dato) => new Date(dato.fecha).getTime());
+    const fechas = data.map((dato) => new Date(dato.fecha).getTime());
     const tensorFechas = tf.tensor2d(fechas, [fechas.length, 1]);
     const [tensorFechasNorm] = tf.tidy(() => {
       const fechasMin = tensorFechas.min();
@@ -143,16 +150,16 @@ export const NeuronalNetowrking = ({data}) => {
 
     const nuevasFechas = [];
     const nuevasVentas = [];
-    for (let i = 0; i < jsonData.length; i++) {
-      nuevasFechas.push(new Date(jsonData[i].fecha));
-      nuevasVentas.push(jsonData[i].cantidad);
+    for (let i = 0; i < data.length; i++) {
+      nuevasFechas.push(new Date(data[i].fecha));
+      nuevasVentas.push(data[i].cantidad);
       if (ventasPredicciones[i]) {
-        nuevasFechas.push(new Date(jsonData[i].fecha));
+        nuevasFechas.push(new Date(data[i].fecha));
         nuevasVentas.push(ventasPredicciones[i]);
       }
     }
 
-    const data = {
+    const chartData = {
       labels: nuevasFechas,
       datasets: [
         {
@@ -201,11 +208,11 @@ export const NeuronalNetowrking = ({data}) => {
       },
     };
 
-    setChartData(<Line data={data} options={options} />);
+    setChartData(<Line data={chartData} options={options} />);
   };
 
   const handleModeloVentasClick = async () => {
-    if (jsonData) {
+    if (data) {
       const model = await trainModel();
       setModeloVentas(model);
     }
@@ -221,3 +228,5 @@ export const NeuronalNetowrking = ({data}) => {
     </div>
   );
 };
+
+export default NeuronalNetworking;

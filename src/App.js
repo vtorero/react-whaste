@@ -1,9 +1,9 @@
 import './App.css';
 import Clasificacion from './components/Clasificacion';
 import MultipleLinearRegression from './components/MultipleLinearRegression';
-import {NeuronalNetowrking} from './components/NeuronalNetworking';
+import NeuronalNetowrking from './components/NeuronalNetworking';
 import LinearRegression from './components/LinearRegressionComponent';
-import {useState, useEffect} from 'react';
+import { useState, useEffect } from 'react';
 function App() {
   const [data, setData] = useState({});
   const [isLoading, setIsLoading] = useState(true);
