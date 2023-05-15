@@ -66,8 +66,6 @@ const LinearRegression = ({data}) => {
     <div>
       <h1>Modelo de Regresion Lineal Simple</h1>
       <p>Predicted sales for the current month: {predictedSales.toFixed(2)}</p>
-      <p>Mean squared error: {mse.toFixed(2)}</p>
-      <p>R-squared value: {(rSquared * 100).toFixed(2)}%</p>
       <p>Mean Absolute Percentage Error: {mape.toFixed(2)}%</p>
       <p>Accuracy: {accuracy.toFixed(2)}%</p>
     </div>
