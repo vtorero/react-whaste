@@ -9,7 +9,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://35.231.78.51/fapi-dev/data.php/api', {
+    fetch('https://franz.kvconsult.com/fapi-dev/data.php/api', {
       mode: 'cors',
     })
       .then((response) => response.json())
@@ -39,6 +39,8 @@ function App() {
           <NeuronalNetowrking data={data} />
           <Clasificacion data={data} />
           <LinearRegression data={data} />
+
+
         </>
       )}
     </div>

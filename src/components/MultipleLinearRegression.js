@@ -11,37 +11,46 @@ const MultipleLinearRegression = ({data}) => {
   useEffect(() => {
     const {offers, wastes, demands, sales} = data;
 
-    const minOffer = Math.min(...offers);
-    const maxOffer = Math.max(...offers);
-    const normOffers = offers.map(
-      (offer) => (offer - minOffer) / (maxOffer - minOffer)
+    // Check if all arrays have the same length
+    const lengthCheck = [offers, wastes, demands, sales].every(
+      (arr) => arr.length === offers.length
     );
 
-    const normWastes = wastes.map(
-      (w) => (w - wastes[0]) / (wastes[wastes.length - 1] - wastes[0])
-    );
-    const normDemands = demands.map(
-      (d) => (d - demands[0]) / (demands[demands.length - 1] - demands[0])
-    );
+    if (!lengthCheck) {
+      console.error('Input arrays must have the same length');
+      return;
+    }
 
-    const normSales = sales.map(
-      (s) => (s - sales[0]) / (sales[sales.length - 1] - sales[0])
-    );
+    // Normalization functions
+    const normalize = (arr) => {
+      const min = Math.min(...arr);
+      const max = Math.max(...arr);
+      return arr.map((value) => (value - min) / (max - min));
+    };
 
+    // Normalize all arrays
+    const normOffers = normalize(offers);
+    const normWastes = normalize(wastes);
+    const normDemands = normalize(demands);
+    const normSales = normalize(sales);
+
+    // Create the testData and outputs matrices
     const testData = new Matrix([
-      normSales,
+      normOffers,
       normWastes,
       normDemands,
-      normOffers,
+      normSales,
     ]).transpose();
 
     const outputs = new Matrix([normSales]).transpose();
 
+    // Perform the regression
     const regression = new MultivariateLinearRegression(testData, outputs);
     const prediction = regression.predict([1, 1, 1, 1])[0];
     const predictionDenorm =
       prediction * (sales[sales.length - 1] - sales[0]) + sales[0];
 
+    // Calculate residuals and mean squared error
     const yHat = regression.predict(testData);
     const residuals = outputs.sub(yHat);
     const residualsArray = residuals.to1DArray();
@@ -54,6 +63,7 @@ const MultipleLinearRegression = ({data}) => {
     );
     const mse = residualsSquaredSum / residualsArray.length;
 
+    // Calculate accuracy
     const explainedSumOfSquares =
       outputs.to1DArray().reduce((a, b) => a + b, 0) -
       Math.pow(
@@ -75,7 +85,7 @@ const MultipleLinearRegression = ({data}) => {
 
     setPredictionDenormalized(predictionDenorm);
     setMeanSquaredError(mse);
-    setAccuracy(accuracy); // Update the state variable name here
+    setAccuracy(accuracy);
   }, [data]);
 
   return (
