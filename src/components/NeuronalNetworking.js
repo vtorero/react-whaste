@@ -3,9 +3,9 @@ import { Line } from 'react-chartjs-2';
 import * as tf from '@tensorflow/tfjs';
 import * as tfvis from '@tensorflow/tfjs-vis';
 
-let accuracy = 0;
-let error = 0;
 const NeuronalNetworking = ({ data }) => {
+  let accuracy = 0;
+  let error = 0;
   const [modeloVentas, setModeloVentas] = useState(null);
   const [chartData, setChartData] = useState(null);
 
@@ -38,7 +38,6 @@ const NeuronalNetworking = ({ data }) => {
     const tensorFechas = tf.tensor2d(fechas, [fechas.length, 1]);
     const tensorVentas = tf.tensor2d(ventas, [ventas.length, 1]);
 
-    // Normalizar los datos para que estén en el rango [0, 1]
     const [tensorFechasNorm, tensorVentasNorm] = tf.tidy(() => {
       const fechasMin = tensorFechas.min();
       const fechasMax = tensorFechas.max();
@@ -55,7 +54,6 @@ const NeuronalNetworking = ({ data }) => {
       return [tensorFechasNorm, tensorVentasNorm];
     });
 
-    // Paso 2: Dividir los datos en conjuntos de entrenamiento y prueba
     const TRAIN_TEST_RATIO = 0.8;
     const [
       tensorFechasTrain,
@@ -92,14 +90,12 @@ const NeuronalNetworking = ({ data }) => {
       ];
     });
 
-    // Paso 3: Crear el modelo de red neuronal
     const model = tf.sequential();
     model.add(
       tf.layers.dense({ inputShape: [1], units: 16, activation: 'relu' })
     );
     model.add(tf.layers.dense({ units: 1, activation: 'linear' }));
 
-    // Paso 4: Compilar y entrenar el modelo
     model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
 
     const history = await model.fit(tensorFechasTrain, tensorVentasTrain, {
@@ -116,7 +112,6 @@ const NeuronalNetworking = ({ data }) => {
       'loss',
       'val_loss',
     ]);
-    // Calculate accuracy
     const evalOutput = model.evaluate(tensorFechasTest, tensorVentasTest, {
       verbose: 0,
     });

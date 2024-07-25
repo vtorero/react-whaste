@@ -11,15 +11,12 @@ const Clasificacion = ({ data }) => {
     async function run() {
       const classifier = knnClassifier.create();
       const sales = data.sales;
-      // Create tensor for sales data
       const tensorSales = tf.tensor1d(sales);
 
-      // Normalize sales data
       const { mean, variance } = tf.moments(tensorSales);
       const std = tf.sqrt(variance);
       const normTensorSales = tensorSales.sub(mean).div(std);
 
-      // Train KNN regression model
       for (let i = 0; i < sales.length - 1; i++) {
         classifier.addExample(
           normTensorSales.slice([i], [1]),
@@ -27,7 +24,6 @@ const Clasificacion = ({ data }) => {
         );
       }
 
-      // Predict sales for new input data
       const newSale = 80;
       const normNewSale = tf.scalar(newSale).sub(mean).div(std);
       const prediction = await classifier.predictClass(normNewSale);
@@ -37,7 +33,6 @@ const Clasificacion = ({ data }) => {
 
       setPredictedSales(denormalizedPrediction.dataSync()[0]);
 
-      // Calcular predicciones para todos los datos de ventas de entrenamiento
       const predictions = [];
       for (let i = 0; i < sales.length - 1; i++) {
         const prediction = await classifier.predictClass(
@@ -49,12 +44,10 @@ const Clasificacion = ({ data }) => {
         predictions.push(denormalizedPrediction.dataSync()[0]);
       }
 
-      // Calcular MSE
       const mseTensor = tf.losses.meanSquaredError(sales.slice(1), predictions);
       const mseValue = await mseTensor.data();
       setMse(mseValue);
 
-      // Calcular R2
       const totalSumSquares = tf
         .sum(tf.squaredDifference(tensorSales.mean(), tensorSales))
         .dataSync()[0];
