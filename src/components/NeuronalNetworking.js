@@ -103,7 +103,7 @@ const NeuronalNetworking = ({ data }) => {
     model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
 
     const history = await model.fit(tensorFechasTrain, tensorVentasTrain, {
-      epochs: 100,
+      epochs: 200,
       validationData: [tensorFechasTest, tensorVentasTest],
       callbacks: tfvis.show.fitCallbacks(
         { name: 'Historial de entrenamiento' },
