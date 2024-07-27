@@ -9,6 +9,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+
     fetch('https://franz.kvconsult.com/fapi-dev/data.php/api', {
       mode: 'cors',
     })
