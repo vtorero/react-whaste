@@ -72,7 +72,7 @@ const Clasificacion = ({ data }) => {
       <p>MSE: {mse}</p>
       <p>R2: {r2}</p>
       <p>
-        Predicted sales for {80}: {predictedSales}
+        Predicted sales for next month: {predictedSales}
       </p>
     </div>
   );
