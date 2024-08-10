@@ -24,6 +24,9 @@ const MultipleLinearRegression = ({ data }) => {
     const normalize = (arr) => {
       const min = Math.min(...arr);
       const max = Math.max(...arr);
+      if (max === min) {
+        return arr.map(() => 0.5);
+      }
       return arr.map((value) => (value - min) / (max - min));
     };
 
@@ -54,10 +57,10 @@ const MultipleLinearRegression = ({ data }) => {
 
         const data = await Promise.all(responses.map((response) => response.json()));
 
-        const latestSales = parseFloat(data[0][0].total_ventas_mes);
-        const latestWastes = parseFloat(data[1][0].total_mermas);
-        const latestOffers = parseFloat(data[2][0].total_oferta_mes);
-        const latestDemands = parseFloat(data[3][0].total_demanda_mes);
+        const latestSales = parseFloat(data[0][0].total_ventas_mes) || 0;
+        const latestWastes = parseFloat(data[1][0].total_mermas) || 0;
+        const latestOffers = parseFloat(data[2][0].total_oferta_mes) || 0;
+        const latestDemands = parseFloat(data[3][0].total_demanda_mes) || 0;
 
         const normLatestOffers = (latestOffers - Math.min(...offers)) / (Math.max(...offers) - Math.min(...offers));
         const normLatestWastes = (latestWastes - Math.min(...wastes)) / (Math.max(...wastes) - Math.min(...wastes));
