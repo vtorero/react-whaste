@@ -1,43 +1,54 @@
-import React, { useState } from 'react';
-import { Line } from 'react-chartjs-2';
+import React, { useState, useEffect } from 'react';
 import * as tf from '@tensorflow/tfjs';
-import * as tfvis from '@tensorflow/tfjs-vis';
 
-const NeuronalNetworking = ({ data }) => {
-  let accuracy = 0;
-  let error = 0;
-  const [modeloVentas, setModeloVentas] = useState(null);
-  const [chartData, setChartData] = useState(null);
+// API endpoint
+const API_URL = 'https://franz.kvconsult.com/fapi-dev/data.php/api';
 
+const NeuronalNetworking = () => {
+  const [accuracy, setAccuracy] = useState(0); // State for accuracy
+  const [error, setError] = useState(0); // State for error (MSE)
+  const [mae, setMae] = useState(0); // Mean Absolute Error (MAE)
+  const [rmse, setRmse] = useState(0); // Root Mean Squared Error (RMSE)
 
-  const trainModel = async () => {
-    if (!data) return;
-    // Paso 1: Cargar y preparar los dato
-    const fechas = data.dailySales.map((dato) => {
-      const parts = dato.fecha.split('-').map(Number);
-      const year = parts[0] < 50 ? 2000 + parts[0] : 1900 + parts[0];
-      const time = new Date(year, parts[2] - 1, parts[1]).getTime();
-      if (!isFinite(time)) {
-        throw new Error(`Invalid data: ${dato.fecha}`);
-      }
-      return time;
-    }).filter((time) => !isNaN(time));
+  // Fetch data from the API
+  const fetchData = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
 
+      // Extract ventas_x_dia data
+      const ventas_x_dia = data.ventas_x_dia;
+      console.log("Sales data fetched:", ventas_x_dia);
 
-    if (fechas.length !== data.dailySales.length) {
+      // Proceed to train the model with fetched data
+      trainModel(ventas_x_dia);
+    } catch (error) {
+      console.error('Error fetching data from API:', error);
+    }
+  };
+
+  // Train the neural network model
+  const trainModel = async (ventasData) => {
+    if (!ventasData || !ventasData.length) {
+      console.error('No sales data available for training.');
       return;
     }
 
-    const ventas = data.dailySales.map((dato) => {
-      if (!isFinite(dato.total)) {
-        throw new Error(`Invalid data: ${dato.total}`);
-      }
-      return dato.total;
+    // Prepare and normalize the data
+    const fechas = ventasData.map((dato) => {
+      // Split and process the 'fecha' field correctly
+      const parts = dato.fecha.split('-').map(Number);
+      const year = parts[0] < 50 ? 2000 + parts[0] : 1900 + parts[0];
+      const time = new Date(year, parts[1] - 1, parts[2]).getTime(); // Correct date order
+      return time;
     });
+
+    const ventas = ventasData.map((dato) => dato.total);
 
     const tensorFechas = tf.tensor2d(fechas, [fechas.length, 1]);
     const tensorVentas = tf.tensor2d(ventas, [ventas.length, 1]);
 
+    // Normalize the data
     const [tensorFechasNorm, tensorVentasNorm] = tf.tidy(() => {
       const fechasMin = tensorFechas.min();
       const fechasMax = tensorFechas.max();
@@ -54,6 +65,7 @@ const NeuronalNetworking = ({ data }) => {
       return [tensorFechasNorm, tensorVentasNorm];
     });
 
+    // Train-test split
     const TRAIN_TEST_RATIO = 0.8;
     const [
       tensorFechasTrain,
@@ -90,136 +102,70 @@ const NeuronalNetworking = ({ data }) => {
       ];
     });
 
+    // Build the model
     const model = tf.sequential();
     model.add(
       tf.layers.dense({ inputShape: [1], units: 16, activation: 'relu' })
     );
     model.add(tf.layers.dense({ units: 1, activation: 'linear' }));
 
+    // Compile the model
     model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
 
-    const history = await model.fit(tensorFechasTrain, tensorVentasTrain, {
+    // Train the model
+    await model.fit(tensorFechasTrain, tensorVentasTrain, {
       epochs: 200,
       validationData: [tensorFechasTest, tensorVentasTest],
-      callbacks: tfvis.show.fitCallbacks(
-        { name: 'Historial de entrenamiento' },
-        ['loss', 'val_loss'],
-        { height: 200, callbacks: ['onEpochEnd'] }
-      ),
     });
 
-    tfvis.show.history({ name: 'Historial de entrenamiento' }, history, [
-      'loss',
-      'val_loss',
-    ]);
+    // Evaluate the model
     const evalOutput = model.evaluate(tensorFechasTest, tensorVentasTest, {
       verbose: 0,
     });
-    let loss = evalOutput.dataSync();
+    let loss = evalOutput.dataSync()[0]; // Get the loss (MSE)
     let acc = (1 - loss) * 100;
-    accuracy = `${acc.toFixed(2)}%`;
-    error = `${loss * 100}%`;
-    setModeloVentas(model);
-    generarPredicciones();
+
+    // Set accuracy and error (MSE)
+    setAccuracy(`${acc.toFixed(2)}%`);
+    setError(`${(loss * 100).toFixed(2)}%`);
+
+    // Generate predictions and calculate additional metrics
+    generarPredicciones(model, tensorFechasTest, tensorVentasTest);
   };
 
-  const generarPredicciones = async () => {
-    if (!modeloVentas || !data || !data.length) return;
-
-    const fechas = data.map((dato) => new Date(dato.fecha).getTime());
-    const tensorFechas = tf.tensor2d(fechas, [fechas.length, 1]);
-    const [tensorFechasNorm] = tf.tidy(() => {
-      const fechasMin = tensorFechas.min();
-      const fechasMax = tensorFechas.max();
-
-      const tensorFechasNorm = tensorFechas
-        .sub(fechasMin)
-        .div(fechasMax.sub(fechasMin));
-
-      return [tensorFechasNorm];
-    });
-
-    const predicciones = modeloVentas.predict(tensorFechasNorm);
-    const datosPredicciones = await predicciones.data();
-    const ventasPredicciones = datosPredicciones.map((dato) => dato[0]);
-
-    const nuevasFechas = [];
-    const nuevasVentas = [];
-    for (let i = 0; i < data.length; i++) {
-      nuevasFechas.push(new Date(data[i].fecha));
-      nuevasVentas.push(data[i].cantidad);
-      if (ventasPredicciones[i]) {
-        nuevasFechas.push(new Date(data[i].fecha));
-        nuevasVentas.push(ventasPredicciones[i]);
-      }
+  // Generate predictions using the trained model and calculate additional metrics
+  const generarPredicciones = async (model, tensorFechasTest, tensorVentasTest) => {
+    if (!model) {
+      console.error('No trained model available for predictions.');
+      return;
     }
 
-    const chartData = {
-      labels: nuevasFechas,
-      datasets: [
-        {
-          label: 'Ventas',
-          data: nuevasVentas,
-          fill: false,
-          backgroundColor: 'rgba(75,192,192,0.4)',
-          borderColor: 'rgba(75,192,192,1)',
-          pointBorderColor: 'rgba(75,192,192,1)',
-          pointBackgroundColor: '#fff',
-          pointBorderWidth: 1,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: 'rgba(75,192,192,1)',
-          pointHoverBorderColor: 'rgba(220,220,220,1)',
-          pointHoverBorderWidth: 2,
-          pointRadius: 1,
-          pointHitRadius: 10,
-        },
-      ],
-    };
+    const prediccionesTensor = model.predict(tensorFechasTest);
+    const prediccionesData = await prediccionesTensor.data();
+    const actualData = await tensorVentasTest.data();
 
-    const options = {
-      scales: {
-        xAxes: [
-          {
-            type: 'time',
-            time: {
-              unit: 'day',
-              displayFormats: {
-                day: 'DD MMM YY',
-              },
-            },
-          },
-        ],
-        yAxes: [
-          {
-            ticks: {
-              beginAtZero: true,
-            },
-            scaleLabel: {
-              display: true,
-              labelString: 'Ventas',
-            },
-          },
-        ],
-      },
-    };
+    // Calculate MAE and RMSE
+    const sumAbsoluteError = actualData.reduce((sum, actual, index) => sum + Math.abs(actual - prediccionesData[index]), 0);
+    const mae = sumAbsoluteError / actualData.length;
+    setMae(mae.toFixed(4));
 
-    setChartData(<Line data={chartData} options={options} />);
+    const sumSquaredError = actualData.reduce((sum, actual, index) => sum + Math.pow(actual - prediccionesData[index], 2), 0);
+    const rmse = Math.sqrt(sumSquaredError / actualData.length);
+    setRmse(rmse.toFixed(4));
   };
 
-  const handleModeloVentasClick = async () => {
-    if (data) {
-      const model = await trainModel();
-      setModeloVentas(model);
-    }
-  };
+  // Fetch data when component mounts
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   return (
     <div>
-      <h1> Modelo de Red Neuronal </h1>
-      <p>Precision: {accuracy} </p>
-      <p>Error: {error}</p>
-      <button onClick={handleModeloVentasClick}>Modelo de Ventas</button>
-      {chartData && <Line data={chartData} />}
+      <h1>Modelo de Red Neuronal</h1>
+      <p>Precisión: {accuracy}</p>
+      <p>Error (MSE): {error}</p>
+      <p>Error Absoluto Medio (MAE): {mae}</p>
+      <p>Raíz del Error Cuadrático Medio (RMSE): {rmse}</p>
     </div>
   );
 };
